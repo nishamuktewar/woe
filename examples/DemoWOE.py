@@ -11,8 +11,8 @@ sys.path.append("/usr/local/lib/python2.7/site-packages/IPython/extensions/")
 %autoreload 2
 
 if __name__ == '__main__':
-    config_path = os.getcwd()+'//examples/config.csv'
-    data_path = os.getcwd()+'//examples/UCI_Credit_Card.csv'
+    config_path = os.getcwd()+'//examples/config2.csv'
+    data_path = os.getcwd()+'//examples/UCI_Credit_Card2.csv'
     feature_detail_path = os.getcwd()+'//examples/features_detail.csv'
     rst_pkl_path = os.getcwd()+'//examples/woe_rule.pkl'
     # train woe rule

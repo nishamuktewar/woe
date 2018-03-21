@@ -35,6 +35,23 @@ class InfoValue(object):
         self.sub_total_num_percentage = []
         self.positive_rate_in_sub_total = []
         self.negative_rate_in_sub_total = []
+        self.weight_freq = []
+        self.weight_positive_freq = []
+        self.weight_negative_freq = []
+        self.cum_weight_freq = []
+        self.cum_weight_positive_freq = []
+        self.cum_weight_negative_freq = []
+        self.total_weight_freq = 0
+        self.total_weight_positive_freq = 0
+        self.total_weight_negative_freq = 0
+        self.perc_cum_weight_freq = []
+        self.perc_cum_weight_positive_freq = []
+        self.perc_cum_weight_negative_freq = []
+        self.ks_list = []
+        self.maxks = 0
+        self.pos_trend = 0
+        self.neg_trend = 0
+        self.linearity = 0
 
     def init(self,civ):
         self.var_name = civ.var_name
@@ -49,7 +66,23 @@ class InfoValue(object):
         self.sub_total_num_percentage = civ.sub_total_num_percentage
         self.positive_rate_in_sub_total = civ.positive_rate_in_sub_total
         self.negative_rate_in_sub_total = civ.negative_rate_in_sub_total
-
+        self.weight_freq = civ.weight_freq
+        self.weight_positive_freq = civ.weight_positive_freq
+        self.weight_negative_freq = civ.weight_negative_freq
+        self.cum_weight_freq = civ.cum_weight_freq
+        self.cum_weight_positive_freq = civ.cum_weight_positive_freq
+        self.cum_weight_negative_freq = civ.cum_weight_negative_freq
+        self.total_weight_freq = civ.total_weight_freq
+        self.total_weight_positive_freq = civ.total_weight_positive_freq
+        self.total_weight_negative_freq = civ.total_weight_negative_freq
+        self.perc_cum_weight_freq = civ.perc_cum_weight_freq
+        self.perc_cum_weight_positive_freq = civ.perc_cum_weight_positive_freq
+        self.perc_cum_weight_negative_freq = civ.perc_cum_weight_negative_freq
+        self.ks_list = civ.ks_list
+        self.maxks = civ.maxks
+        self.pos_trend = civ.pos_trend
+        self.neg_trend = civ.neg_trend
+        self.linearity = civ.linearity
 
 class DisInfoValue(object):
     '''
@@ -141,7 +174,7 @@ def check_point(df,var,split,min_sample):
         pass
     return new_split
 
-def calulate_iv(df,var,global_bt,global_gt):
+def calulate_iv(df,var,global_bt,global_gt,global_wbt,global_wgt):
     '''
     calculate the iv and woe value without split
     :param df:
@@ -165,6 +198,14 @@ def calulate_iv(df,var,global_bt,global_gt):
     groupdetail['positive_rate_in_sub_total'] = bt_sub*1.0/df.shape[0]
     groupdetail['negative_rate_in_sub_total'] = gt_sub*1.0/df.shape[0]
 
+    wbt_sub = sum(df['weight'])
+    wbri = (wbt_sub + 0.0001)* 1.0 / global_wbt
+    wgt_sub = df.shape[0] - wbt_sub
+    wgri = (wgt_sub + 0.0001)* 1.0 / global_wgt
+    groupdetail['weight_freq'] = df.shape[0]*1.0/(global_wbt+global_wgt)
+    groupdetail['weight_positive_freq'] = wbt_sub
+    groupdetail['weight_negative_freq'] = wgt_sub
+
     return groupdetail
 
 
@@ -176,8 +217,8 @@ def calculate_iv_split(df,var,split_point,global_bt,global_gt):
     :return:
     """
     #split dataset
-    dataset_r = df[df.loc[:,var] > split_point][[var,'target']]
-    dataset_l = df[df.loc[:,var] <= split_point][[var,'target']]
+    dataset_r = df[df.loc[:,var] > split_point][[var,'target','weight']]
+    dataset_l = df[df.loc[:,var] <= split_point][[var,'target','weight']]
 
     r1_cnt = sum(dataset_r['target'])
     r0_cnt = dataset_r.shape[0] - r1_cnt
@@ -201,14 +242,14 @@ def calculate_iv_split(df,var,split_point,global_bt,global_gt):
     return woel,woer,iv,dataset_l,dataset_r,ivl,ivr
 
 
-def binning_data_split(df,var,global_bt,global_gt,min_sample,alpha=0.01):
+def binning_data_split(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sample,alpha=0.01):
     """
     Specify the data split level and return the split value list
     :return:
     """
     iv_var = InfoValue()
     # Calculates the IV of the current node before splitted
-    gd = calulate_iv(df, var,global_bt,global_gt)
+    gd = calulate_iv(df, var,global_bt,global_gt,global_wbt,global_wgt)
 
     woei, ivi = gd['woei'],gd['ivi']
 
@@ -270,14 +311,14 @@ def binning_data_split(df,var,global_bt,global_gt,min_sample,alpha=0.01):
             presplit_right.iv = bestSplit_ivr
             right = presplit_right
         else:
-            right = binning_data_split(bestSplit_dataset_r,var,global_bt,global_gt,min_sample,alpha=0.01)
+            right = binning_data_split(bestSplit_dataset_r,var,global_bt,global_gt,global_wbt,global_wgt,min_sample,alpha=0.01)
 
         # Determine whether the left node satisfies the segmentation prerequisite
         if bestSplit_dataset_l.shape[0] < min_sample or np.unique(bestSplit_dataset_l['target']).__len__() == 1:
             presplit_left.iv = bestSplit_ivl
             left = presplit_left
         else:
-            left = binning_data_split(bestSplit_dataset_l,var,global_bt,global_gt,min_sample,alpha=0.01)
+            left = binning_data_split(bestSplit_dataset_l,var,global_bt,global_gt,global_wbt,global_wgt,min_sample,alpha=0.01)
 
         return node(var_name=var,split_point=bestSplit_point,iv=ivi,left=left,right=right)
     else:
@@ -305,7 +346,7 @@ def search(tree,split_list):
     return split_list
 
 
-def format_iv_split(df,var,split_list,global_bt,global_gt):
+def format_iv_split(df,var,split_list,global_bt,global_gt,global_wbt,global_wgt):
     '''
     Given the dataset DataFrame and split points list then return a InfoValue instance;
     Just for continuous variable
@@ -326,11 +367,25 @@ def format_iv_split(df,var,split_list,global_bt,global_gt):
     civ.negative_sample_num = []
     civ.sub_total_num_percentage = []
     civ.positive_rate_in_sub_total = []
+    civ.weight_freq = []
+    civ.weight_positive_freq = []
+    civ.weight_negative_freq = []
+    civ.cum_weight_freq = []
+    civ.cum_weight_positive_freq = []
+    civ.cum_weight_negative_freq = []
+    civ.perc_cum_weight_freq = []
+    civ.perc_cum_weight_positive_freq = []
+    civ.perc_cum_weight_negative_freq = []
+    civ.ks_list = []
+    civ.maxks = 0
+    civ.pos_trend = 0
+    civ.neg_trend = 0
+    civ.linearity = 0
 
     for i in range(0, split_list.__len__()):
         dfi = dfcp[dfcp[var] <= split_list[i]]
         dfcp = dfcp[dfcp[var] > split_list[i]]
-        gd = calulate_iv(dfi, var,global_bt,global_gt)
+        gd = calulate_iv(dfi, var,global_bt,global_gt,global_wbt,global_wgt)
         woei, ivi = gd['woei'],gd['ivi']
         civ.woe_list.append(woei)
         civ.iv_list.append(ivi)
@@ -340,9 +395,24 @@ def format_iv_split(df,var,split_list,global_bt,global_gt):
         civ.sub_total_num_percentage.append(gd['sub_total_num_percentage'])
         civ.positive_rate_in_sub_total.append(gd['positive_rate_in_sub_total'])
         civ.negative_rate_in_sub_total.append(gd['negative_rate_in_sub_total'])
-
+        civ.weight_freq.append(gd['weight_positive_freq'] + gd['weight_negative_freq'])
+        civ.weight_positive_freq.append(gd['weight_positive_freq'])
+        civ.weight_negative_freq.append(gd['weight_negative_freq'])
+        if not i==0:
+            civ.cum_weight_freq.append(civ.cum_weight_freq[i-1] + gd['weight_positive_freq'] + gd['weight_negative_freq'])
+            civ.cum_weight_positive_freq.append(civ.cum_weight_positive_freq[i-1] + gd['weight_positive_freq'])
+            civ.cum_weight_negative_freq.append(civ.cum_weight_negative_freq[i-1] + gd['weight_negative_freq'])
+        else:
+            civ.cum_weight_freq.append(gd['weight_positive_freq'] + gd['weight_negative_freq'])
+            civ.cum_weight_positive_freq.append(gd['weight_positive_freq'])
+            civ.cum_weight_negative_freq.append(gd['weight_negative_freq'])
+            if gd['woei'] > civ.woe_list[i-1]:
+                civ.pos_trend = civ.pos_trend + 1
+            else:
+                civ.neg_trend = civ.neg_trend + 1
+                        
     if dfcp.shape[0]>0:
-        gd = calulate_iv(dfcp, var,global_bt,global_gt)
+        gd = calulate_iv(dfcp, var,global_bt,global_gt,global_wbt,global_wgt)
         woei, ivi = gd['woei'],gd['ivi']
         civ.woe_list.append(woei)
         civ.iv_list.append(ivi)
@@ -352,8 +422,36 @@ def format_iv_split(df,var,split_list,global_bt,global_gt):
         civ.sub_total_num_percentage.append(gd['sub_total_num_percentage'])
         civ.positive_rate_in_sub_total.append(gd['positive_rate_in_sub_total'])
         civ.negative_rate_in_sub_total.append(gd['negative_rate_in_sub_total'])
+        civ.weight_freq.append(gd['weight_positive_freq'] + gd['weight_negative_freq'])
+        civ.weight_positive_freq.append(gd['weight_positive_freq'])
+        civ.weight_negative_freq.append(gd['weight_negative_freq'])
+        civ.cum_weight_freq.append(civ.cum_weight_freq[split_list.__len__()-1] + gd['weight_positive_freq'] + gd['weight_negative_freq'])
+        civ.cum_weight_positive_freq.append(civ.cum_weight_positive_freq[split_list.__len__()-1] + gd['weight_positive_freq'])
+        civ.cum_weight_negative_freq.append(civ.cum_weight_negative_freq[split_list.__len__()-1] + gd['weight_negative_freq'])
+        if gd['woei'] > civ.woe_list[split_list.__len__()-1]:
+            civ.pos_trend = civ.pos_trend + 1
+        else:
+            civ.neg_trend = civ.neg_trend + 1
 
     civ.iv = sum(civ.iv_list)
+    civ.total_weight_freq = sum(civ.weight_freq)
+    civ.total_weight_positive_freq = sum(civ.weight_positive_freq)
+    civ.total_weight_negative_freq = sum(civ.weight_negative_freq)
+    
+    civ.perc_cum_weight_freq = [(x+0.0001)*100.0/ civ.total_weight_freq for x in civ.cum_weight_freq]
+    civ.perc_cum_weight_positive_freq = [(x+0.0001)*100.0/ civ.total_weight_positive_freq for x in civ.cum_weight_positive_freq]
+    civ.perc_cum_weight_negative_freq = [(x+0.0001)*100.0/ civ.total_weight_negative_freq for x in civ.cum_weight_negative_freq]
+    
+    civ.ks_list = list(np.abs(np.array(civ.perc_cum_weight_positive_freq) - np.array(civ.perc_cum_weight_negative_freq)))
+    civ.maxks = np.max(civ.ks_list)
+    civ.linearity = np.abs(civ.pos_trend - civ.neg_trend)*100.0/(split_list.__len__()+0.0001)
+    '''
+    print ('-'*80)
+    print 'split\t', 'weight_freq\t','weight_positive_freq\t','weight_negative_freq\t', 'perc_cum_weight_freq\t', 'ks', 'maxks', 'pos_trend', 'neg_trend', 'woe', 'linearity'
+    print ('-'*80)
+    for i in range(0, split_list.__len__()):
+        print civ.split_list[i], civ.weight_freq[i], civ.weight_positive_freq[i], civ.weight_negative_freq[i], civ.perc_cum_weight_freq[i], civ.ks_list[i], civ.maxks, civ.pos_trend, civ.neg_trend, civ.woe_list[i], civ.linearity 
+    '''
     return civ
 
 
@@ -381,7 +479,7 @@ def woe_trans(dvar,civ):
 
     return var
 
-def proc_woe_discrete(df,var,global_bt,global_gt,min_sample,alpha=0.01):
+def proc_woe_discrete(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sample,alpha=0.01):
     '''
     process woe transformation of discrete variables
     :param df:
@@ -394,7 +492,7 @@ def proc_woe_discrete(df,var,global_bt,global_gt,min_sample,alpha=0.01):
     s = 'process discrete variable:'+str(var)
     print(s.center(60, '-'))
 
-    df = df[[var,'target']]
+    df = df[[var,'target','weight']]
     div = DisInfoValue()
     div.var_name = var
     rdict = {}
@@ -403,7 +501,7 @@ def proc_woe_discrete(df,var,global_bt,global_gt,min_sample,alpha=0.01):
     for var_value in np.unique(df[var]):
         # Here come with a '==',in case type error you must do Nan filling process firstly
         df_temp = df[df[var] == var_value]
-        gd = calulate_iv(df_temp,var,global_bt,global_gt)
+        gd = calulate_iv(df_temp,var,global_bt,global_gt,global_wbt,global_wgt)
         woei, ivi = gd['woei'],gd['ivi']
         div.origin_value.append(var_value)
         div.woe_before.append(woei)
@@ -413,7 +511,7 @@ def proc_woe_discrete(df,var,global_bt,global_gt,min_sample,alpha=0.01):
     cpvar = cpvar.map(rdict)
     df[var] = cpvar
 
-    iv_tree = binning_data_split(df,var,global_bt,global_gt,min_sample,alpha)
+    iv_tree = binning_data_split(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sample,alpha)
 
     # Traversal tree, get the segmentation point
     split_list = []
@@ -425,7 +523,7 @@ def proc_woe_discrete(df,var,global_bt,global_gt,min_sample,alpha=0.01):
     split_list = check_point(df, var, split_list, min_sample)
     split_list.sort()
 
-    civ = format_iv_split(df, var, split_list,global_bt,global_gt)
+    civ = format_iv_split(df, var, split_list,global_bt,global_gt,global_wbt,global_wgt)
     civ.is_discrete = 1
 
     split_list_temp = []
@@ -448,7 +546,7 @@ def proc_woe_discrete(df,var,global_bt,global_gt,min_sample,alpha=0.01):
     return civ
 
 
-def proc_woe_continuous(df,var,global_bt,global_gt,min_sample,alpha=0.01):
+def proc_woe_continuous(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sample,alpha=0.01):
     '''
     process woe transformation of discrete variables
     :param df:
@@ -460,8 +558,8 @@ def proc_woe_continuous(df,var,global_bt,global_gt,min_sample,alpha=0.01):
     '''
     s = 'process continuous variable:'+str(var)
     print(s.center(60, '-'))
-    df = df[[var,'target']]
-    iv_tree = binning_data_split(df, var,global_bt,global_gt,min_sample,alpha)
+    df = df[[var,'target','weight']]
+    iv_tree = binning_data_split(df, var,global_bt,global_gt,global_wbt,global_wgt,min_sample,alpha)
 
     # Traversal tree, get the segmentation point
     split_list = []
@@ -473,7 +571,7 @@ def proc_woe_continuous(df,var,global_bt,global_gt,min_sample,alpha=0.01):
     split_list = check_point(df, var, split_list, min_sample)
     split_list.sort()
 
-    civ = format_iv_split(df, var,split_list,global_bt,global_gt)
+    civ = format_iv_split(df, var,split_list,global_bt,global_gt,global_wbt,global_wgt)
 
     return civ
 
@@ -502,7 +600,8 @@ def process_train_woe(infile_path=None,outfile_path=None,rst_path=None,config_pa
     cfg = config.config()
     cfg.load_file(config_path,data_path)
     bin_var_list = [tmp for tmp in cfg.bin_var_list if tmp in list(cfg.dataset_train.columns)]
-
+    orig_dataset_train = cfg.dataset_train
+    
     for var in bin_var_list:
         # fill null
         cfg.dataset_train.loc[cfg.dataset_train[var].isnull(), (var)] = -1
@@ -515,18 +614,49 @@ def process_train_woe(infile_path=None,outfile_path=None,rst_path=None,config_pa
     print('process woe transformation of continuous variables: \n',time.asctime(time.localtime(time.time())))
     print('cfg.global_bt',cfg.global_bt)
     print('cfg.global_gt', cfg.global_gt)
+    print('cfg.global_wbt',cfg.global_wbt)
+    print('cfg.global_wgt', cfg.global_wgt)
 
     for var in bin_var_list:
-        rst.append(proc_woe_continuous(cfg.dataset_train,var,cfg.global_bt,cfg.global_gt,cfg.min_sample,alpha=0.05))
+        rst.append(proc_woe_continuous(cfg.dataset_train,var,cfg.global_bt,cfg.global_gt,cfg.global_wbt,cfg.global_wgt,cfg.min_sample,alpha=0.05))
 
     # process woe transformation of discrete variables
     print('process woe transformation of discrete variables: \n',time.asctime(time.localtime(time.time())))
+    discrete_var_list = [tmp for tmp in cfg.discrete_var_list if tmp in list(cfg.dataset_train.columns)]
     for var in [tmp for tmp in cfg.discrete_var_list if tmp in list(cfg.dataset_train.columns)]:
         # fill null
         cfg.dataset_train.loc[cfg.dataset_train[var].isnull(), (var)] = 'missing'
-        rst.append(proc_woe_discrete(cfg.dataset_train,var,cfg.global_bt,cfg.global_gt,cfg.min_sample,alpha=0.05))
+        rst.append(proc_woe_discrete(cfg.dataset_train,var,cfg.global_bt,cfg.global_gt,cfg.global_wbt,cfg.global_wgt,cfg.min_sample,alpha=0.05))
 
     feature_detail = eval.eval_feature_detail(rst, outfile_path)
+    
+    for var in bin_var_list:
+        print 'variable = ',var,'\t# obs = ',len(orig_dataset_train[var]),'\t# valid = ',len(orig_dataset_train.loc[~orig_dataset_train[var].isnull(), (var)]),'\t% valid = ',len(orig_dataset_train.loc[~orig_dataset_train[var].isnull(), (var)])*100.0/(len(orig_dataset_train[var]))
+        df = feature_detail.loc[feature_detail['var_name'] == var]
+        df.to_string(formatters={
+            'sub_total_sample_num': '{:,}'.format,
+            'positive_sample_num': '{:,}'.format,
+            'weight_positive_freq': '{:,}'.format,
+            'weight_negative_freq': '{:,}'.format,
+            'perc_cum_weight_freq': '{:.2f}'.format,
+            'perc_cum_weight_positive_freq': '{:.2f}'.format,
+            'perc_cum_weight_negative_freq': '{:.2f}'.format,
+            'woe_list': '{:.3f}'.format,
+            'iv_list': '{:.3f}'.format,
+            'ks_list': '{:.3f}'.format
+        })
+        import pandas as pd
+        pd.options.display.float_format = '{:.2f}'.format
+        print(df[['split_list','sub_total_sample_num','positive_sample_num'
+            ,'weight_positive_freq','weight_negative_freq'
+            ,'perc_cum_weight_freq','perc_cum_weight_positive_freq','perc_cum_weight_negative_freq'
+            ,'woe_list','iv_list','ks_list']])
+        eval.plot_woe(df, var)
+
+    for var in discrete_var_list:
+        #df_orig = feature_detail.loc[feature_detail['var_name'] == 'LIMIT_BAL']
+        df = feature_detail.loc[feature_detail['var_name'] == var]
+        eval.plot_woe(df, var)
 
     print('save woe transformation rule into pickle: \n',time.asctime(time.localtime(time.time())))
     output = open(rst_path, 'wb')

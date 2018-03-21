@@ -36,7 +36,7 @@ def eval_feature_detail(Info_Value_list,out_path=False):
         if rst[kk].split_list != []:
             if not rst[kk].is_discrete:
                 #deal with split_list
-                split_list.append('(-INF,'+str(rst[kk].split_list[0])+']')
+                split_list.append('(-INF,'+str(rst[kk].split_list[0])+'')
                 for i in range(0,len(rst[kk].split_list)-1):
                     split_list.append('(' + str(rst[kk].split_list[i])+','+ str(rst[kk].split_list[i+1]) + ']')
 
@@ -49,7 +49,12 @@ def eval_feature_detail(Info_Value_list,out_path=False):
         # merge into dataframe
         columns = ['var_name','split_list','sub_total_sample_num','positive_sample_num'
             ,'negative_sample_num','sub_total_num_percentage','positive_rate_in_sub_total'
-            ,'woe_list','iv_list','iv']
+            ,'woe_list','iv_list','iv'
+            ,'weight_freq','weight_positive_freq','weight_negative_freq'
+            ,'cum_weight_freq','cum_weight_positive_freq','cum_weight_negative_freq'
+            ,'total_weight_freq','total_weight_positive_freq','total_weight_negative_freq'
+            ,'perc_cum_weight_freq','perc_cum_weight_positive_freq','perc_cum_weight_negative_freq'
+            ,'ks_list','maxks', 'linearity']
         rowcnt = len(rst[kk].iv_list)
         if rowcnt < len(split_list):
             split_list = split_list[:rowcnt]
@@ -63,7 +68,20 @@ def eval_feature_detail(Info_Value_list,out_path=False):
                              ,'positive_sample_num':rst[kk].positive_sample_num,'negative_sample_num':rst[kk].negative_sample_num
                              ,'sub_total_num_percentage':rst[kk].sub_total_num_percentage
                              ,'positive_rate_in_sub_total':rst[kk].positive_rate_in_sub_total
-                             ,'negative_rate_in_sub_total':rst[kk].negative_rate_in_sub_total},columns=columns)
+                             ,'negative_rate_in_sub_total':rst[kk].negative_rate_in_sub_total
+                             ,'weight_freq':rst[kk].weight_freq
+                             ,'weight_positive_freq':rst[kk].weight_positive_freq
+                             ,'weight_negative_freq':rst[kk].weight_negative_freq
+                             ,'cum_weight_freq':rst[kk].cum_weight_freq
+                             ,'cum_weight_positive_freq':rst[kk].cum_weight_positive_freq
+                             ,'cum_weight_negative_freq':rst[kk].cum_weight_negative_freq
+                             ,'total_weight_freq':rst[kk].total_weight_freq
+                             ,'total_weight_positive_freq':rst[kk].total_weight_positive_freq
+                             ,'total_weight_negative_freq':rst[kk].total_weight_negative_freq
+                             ,'perc_cum_weight_freq':rst[kk].perc_cum_weight_freq
+                             ,'perc_cum_weight_positive_freq':rst[kk].perc_cum_weight_positive_freq
+                             ,'perc_cum_weight_negative_freq':rst[kk].perc_cum_weight_negative_freq
+                             ,'ks_list':rst[kk].ks_list,'maxks':rst[kk].maxks, 'linearity':rst[kk].linearity},columns=columns)
         format_rst.append(a)
 
     # merge dataframe list into one dataframe vertically
@@ -579,3 +597,15 @@ def proc_cor_eval(dataset_path,config_path,var_list_specfied,out_file_path):
 
     cor = np.corrcoef(dataset[candidate_var_list].values,rowvar=0)
     pd.DataFrame(cor,columns=candidate_var_list).to_csv(out_file_path,index=False)
+    
+def plot_woe(df,var_name,out_path=False):
+    plt.figure()
+    plt.grid(True)
+    y_pos = np.arange(len(df['split_list']))
+    plt.xticks(y_pos,df['split_list'],rotation='vertical')
+    plt.bar(y_pos,df['woe_list'],align='center',alpha=0.5)
+    plt.xlabel(var_name)
+    plt.ylabel('WOE')
+    plt.title('%s - WOE Plot'%var_name)
+    plt.axis('tight')
+    plt.show()

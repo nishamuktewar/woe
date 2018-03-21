@@ -15,6 +15,8 @@ class config:
         self.min_sample = None
         self.global_bt = None
         self.global_gt = None
+        self.global_wbt = None
+        self.global_wgt = None
 
     def load_file(self,config_path,data_path=False):
         self.config = pd.read_csv(config_path)
@@ -43,7 +45,9 @@ class config:
             self.min_sample = int(self.dataset_len * 0.05)
             self.global_bt = sum(self.dataset_train['target'])
             self.global_gt = len(self.dataset_train) - sum(self.dataset_train['target'])
-
+            self.global_wbt = sum(self.dataset_train['weight'])
+            self.global_wgt = len(self.dataset_train) - sum(self.dataset_train['weight'])
+            
     def change_config_var_dtype(self,var_name,type,inplace_file=True):
         if type in ['object','string','int64','uint8','float64','bool1','bool2','dates','category']:
             self.variable_type.loc[var_name,'v_type'] = type
