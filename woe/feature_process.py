@@ -629,35 +629,23 @@ def process_train_woe(infile_path=None,outfile_path=None,rst_path=None,config_pa
         rst.append(proc_woe_discrete(cfg.dataset_train,var,cfg.global_bt,cfg.global_gt,cfg.global_wbt,cfg.global_wgt,cfg.min_sample,alpha=0.05))
 
     feature_detail = eval.eval_feature_detail(rst, outfile_path)
-    
-    for var in bin_var_list:
+
+    import pandas as pd
+    pd.options.display.float_format = '{:.2f}'.format
+    for var in bin_var_list+discrete_var_list:
         print 'variable = ',var,'\t# obs = ',len(orig_dataset_train[var]),'\t# valid = ',len(orig_dataset_train.loc[~orig_dataset_train[var].isnull(), (var)]),'\t% valid = ',len(orig_dataset_train.loc[~orig_dataset_train[var].isnull(), (var)])*100.0/(len(orig_dataset_train[var]))
         df = feature_detail.loc[feature_detail['var_name'] == var]
-        df.to_string(formatters={
-            'sub_total_sample_num': '{:,}'.format,
-            'positive_sample_num': '{:,}'.format,
-            'weight_positive_freq': '{:,}'.format,
-            'weight_negative_freq': '{:,}'.format,
-            'perc_cum_weight_freq': '{:.2f}'.format,
-            'perc_cum_weight_positive_freq': '{:.2f}'.format,
-            'perc_cum_weight_negative_freq': '{:.2f}'.format,
-            'woe_list': '{:.3f}'.format,
-            'iv_list': '{:.3f}'.format,
-            'ks_list': '{:.3f}'.format
-        })
-        import pandas as pd
-        pd.options.display.float_format = '{:.2f}'.format
         print(df[['split_list','sub_total_sample_num','positive_sample_num'
             ,'weight_positive_freq','weight_negative_freq'
             ,'perc_cum_weight_freq','perc_cum_weight_positive_freq','perc_cum_weight_negative_freq'
             ,'woe_list','iv_list','ks_list']])
         eval.plot_woe(df, var)
 
-    for var in discrete_var_list:
-        #df_orig = feature_detail.loc[feature_detail['var_name'] == 'LIMIT_BAL']
-        df = feature_detail.loc[feature_detail['var_name'] == var]
-        eval.plot_woe(df, var)
-
+    s = 'summary of WOE transformation'
+    print(s.center(60, '-'))
+    smry_df = feature_detail[['var_name', 'iv', 'maxks', 'linearity']].drop_duplicates()
+    print(smry_df)
+    
     print('save woe transformation rule into pickle: \n',time.asctime(time.localtime(time.time())))
     output = open(rst_path, 'wb')
     pickle.dump(rst,output)
