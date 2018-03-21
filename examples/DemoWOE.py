@@ -15,11 +15,14 @@ if __name__ == '__main__':
     data_path = os.getcwd()+'//examples/UCI_Credit_Card2.csv'
     feature_detail_path = os.getcwd()+'//examples/features_detail.csv'
     rst_pkl_path = os.getcwd()+'//examples/woe_rule.pkl'
+    rebin_feature_path = os.getcwd()+'//examples/features_rebin.csv'
+    
     # train woe rule
     feature_detail,rst = fp.process_train_woe(infile_path=data_path
                                            ,outfile_path=feature_detail_path
                                            ,rst_path=rst_pkl_path
-                                           ,config_path=config_path)
+                                           ,config_path=config_path
+                                           ,rebin_feature_path=rebin_feature_path)
     # proc woe transformation
     woe_train_path = os.getcwd()+'//examples/dataset_train_woed.csv'
     fp.process_woe_trans(data_path,rst_pkl_path,woe_train_path,config_path)

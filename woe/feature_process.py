@@ -2,7 +2,7 @@
 __author__ = 'boredbird'
 import numpy as np
 import woe.config as config
-import woe.eval as eval
+import woe.eval as woeeval
 import copy
 import pickle
 import time
@@ -497,6 +497,7 @@ def proc_woe_discrete(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sampl
     div.var_name = var
     rdict = {}
     cpvar = df[var]
+    #print(df.head(5))
     # print('np.unique(df[var])：',np.unique(df[var]))
     for var_value in np.unique(df[var]):
         # Here come with a '==',in case type error you must do Nan filling process firstly
@@ -507,16 +508,21 @@ def proc_woe_discrete(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sampl
         div.woe_before.append(woei)
         rdict[var_value] = woei
         # print(var_value,woei,ivi)
-
+    #print(cpvar.head(5))
     cpvar = cpvar.map(rdict)
+    #print(cpvar.head(5))
     df[var] = cpvar
+    #print(df.head(5))
+    #df.loc[:,var] = cpvar.loc[:,1]
 
     iv_tree = binning_data_split(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sample,alpha)
 
     # Traversal tree, get the segmentation point
     split_list = []
     search(iv_tree, split_list)
+    print 'after search split', split_list
     split_list = list(np.unique([1.0 * x for x in split_list if x is not None]))
+    print 'after unique', split_list
     split_list.sort()
 
     # Segmentation point checking and processing
@@ -545,6 +551,81 @@ def proc_woe_discrete(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sampl
 
     return civ
 
+def proc_woe_discrete_rebin(df,var,rebin_list,global_bt,global_gt,global_wbt,global_wgt,min_sample,alpha=0.01):
+    '''
+    process woe transformation of discrete variables
+    :param df:
+    :param var:
+    :param global_bt:
+    :param global_gt:
+    :param min_sample:
+    :return:
+    '''
+    s = 'rebin process discrete variable:'+str(var)
+    print(s.center(60, '-'))
+
+    df = df[[var,'target','weight']]
+    for rebin_val in rebin_list:
+        print 'rebin_val', rebin_val, str(rebin_val)
+        df.loc[df[var].isin(eval(rebin_val)), (var)] = str(rebin_val)
+    print(df.head(5))  
+    
+    div = DisInfoValue()
+    div.var_name = var
+    rdict = {}
+    cpvar = df[var]
+    # print(df.head(5))
+    # print('np.unique(df[var])：',np.unique(df[var]))
+    for var_value in np.unique(df[var]):
+        # Here come with a '==',in case type error you must do Nan filling process firstly
+        df_temp = df[df[var] == var_value]
+        gd = calulate_iv(df_temp,var,global_bt,global_gt,global_wbt,global_wgt)
+        woei, ivi = gd['woei'],gd['ivi']
+        div.origin_value.append(var_value)
+        div.woe_before.append(woei)
+        rdict[var_value] = woei
+        # print(var_value,woei,ivi)
+    #print(cpvar.head(5))
+    cpvar = cpvar.map(rdict)
+    #print(cpvar.head(5))
+    df[var] = cpvar
+    # print(df.head(5))
+    #df.loc[:,var] = cpvar.loc[:,1]
+
+    split_list = list(np.unique(df[[var]]))
+    print 'after unique', split_list
+    split_list.sort()
+
+    # Segmentation point checking and processing
+    # split_list = check_point(df, var, split_list, min_sample)
+    # split_list.sort()
+    print 'after checkpoint', split_list
+    
+    civ = format_iv_split(df,var,split_list,global_bt,global_gt,global_wbt,global_wgt)
+    civ.is_discrete = 1
+    print 'civ.split_list', civ.split_list
+    
+    split_list_temp = []
+    split_list_temp.append(float("-inf"))
+    split_list_temp.extend([i for i in split_list])
+    split_list_temp.append(float("inf"))
+
+    a = []
+    for i in range(split_list_temp.__len__() - 1):
+        temp = []
+        for j in range(div.origin_value.__len__()):
+            if (div.woe_before[j]>split_list_temp[i]) & (div.woe_before[j]<=split_list_temp[i+1]):
+                temp.append(div.origin_value[j])
+
+        if temp != [] :
+            a.append(temp)
+
+    print 'a', a
+    civ.split_list = a
+    
+    
+    return civ
+    
 
 def proc_woe_continuous(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sample,alpha=0.01):
     '''
@@ -575,6 +656,30 @@ def proc_woe_continuous(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sam
 
     return civ
 
+def proc_woe_continuous_rebin(df,var,split_list,global_bt,global_gt,global_wbt,global_wgt,min_sample,alpha=0.01):
+    '''
+    process woe transformation of discrete variables
+    :param df:
+    :param var:
+    :param split_list:
+    :param global_bt:
+    :param global_gt:
+    :param min_sample:
+    :return:
+    '''
+    s = 'rebin process continuous variable:'+str(var)
+    print(s.center(60, '-'))
+    split_list = list(np.unique([1.0 * x for x in split_list if x is not None]))
+    split_list.sort()
+
+    # Segmentation point checking and processing
+    split_list = check_point(df, var, split_list, min_sample)
+    split_list.sort()
+
+    civ = format_iv_split(df, var,split_list,global_bt,global_gt,global_wbt,global_wgt)
+
+    return civ
+  
 def fillna(dataset,bin_var_list,discrete_var_list,continuous_filler=-1,discrete_filler='missing'):
     """
     fill the null value in the dataframe inpalce
@@ -594,11 +699,11 @@ def fillna(dataset,bin_var_list,discrete_var_list,continuous_filler=-1,discrete_
         dataset.loc[dataset[var].isnull(), (var)] = discrete_filler
 
 
-def process_train_woe(infile_path=None,outfile_path=None,rst_path=None,config_path=None):
+def process_train_woe(infile_path=None,outfile_path=None,rst_path=None,config_path=None,rebin_feature_path=None):
     print('run into process_train_woe: \n',time.asctime(time.localtime(time.time())))
     data_path = infile_path
     cfg = config.config()
-    cfg.load_file(config_path,data_path)
+    cfg.load_file(config_path,data_path,rebin_feature_path)
     bin_var_list = [tmp for tmp in cfg.bin_var_list if tmp in list(cfg.dataset_train.columns)]
     orig_dataset_train = cfg.dataset_train
     
@@ -620,6 +725,14 @@ def process_train_woe(infile_path=None,outfile_path=None,rst_path=None,config_pa
     for var in bin_var_list:
         rst.append(proc_woe_continuous(cfg.dataset_train,var,cfg.global_bt,cfg.global_gt,cfg.global_wbt,cfg.global_wgt,cfg.min_sample,alpha=0.05))
 
+    # process woe transformation of continuous variables based on the re-binning logic provided
+    print('process woe transformation of continuous variables based on rebin logic: \n',time.asctime(time.localtime(time.time())))
+    rebin_var_list = [tmp for tmp in cfg.rebin_var_list if tmp in list(cfg.dataset_train.columns)]
+    for var in rebin_var_list:
+        var_df = cfg.dataset_rebin.loc[cfg.dataset_rebin['var_name'] == var]
+        split_list = list(np.unique(var_df[['split']].astype(float)))
+        rst.append(proc_woe_continuous_rebin(cfg.dataset_train,var,split_list,cfg.global_bt,cfg.global_gt,cfg.global_wbt,cfg.global_wgt,cfg.min_sample,alpha=0.05))
+    
     # process woe transformation of discrete variables
     print('process woe transformation of discrete variables: \n',time.asctime(time.localtime(time.time())))
     discrete_var_list = [tmp for tmp in cfg.discrete_var_list if tmp in list(cfg.dataset_train.columns)]
@@ -628,18 +741,31 @@ def process_train_woe(infile_path=None,outfile_path=None,rst_path=None,config_pa
         cfg.dataset_train.loc[cfg.dataset_train[var].isnull(), (var)] = 'missing'
         rst.append(proc_woe_discrete(cfg.dataset_train,var,cfg.global_bt,cfg.global_gt,cfg.global_wbt,cfg.global_wgt,cfg.min_sample,alpha=0.05))
 
-    feature_detail = eval.eval_feature_detail(rst, outfile_path)
+    # process woe transformation of discrete variables based on re-binning logic
+    print('process woe transformation of discrete variables based on rebin logic: \n',time.asctime(time.localtime(time.time())))
+    rebin_discrete_var_list = [tmp for tmp in cfg.rebin_discrete_var_list if tmp in list(cfg.dataset_train.columns)]
+    for var in [tmp for tmp in cfg.rebin_discrete_var_list if tmp in list(cfg.dataset_train.columns)]:
+        # fill null
+        cfg.dataset_train.loc[cfg.dataset_train[var].isnull(), (var)] = 'missing'
+        var_df = cfg.dataset_rebin.loc[cfg.dataset_rebin['var_name'] == var]
+        rebin_list = list(np.unique(var_df[['split']]))
+        # rebin_list = var_df[['split']]
+        print 'rebin list', rebin_list, 'type', type(rebin_list)
+        rst.append(proc_woe_discrete_rebin(cfg.dataset_train,var,rebin_list,cfg.global_bt,cfg.global_gt,cfg.global_wbt,cfg.global_wgt,cfg.min_sample,alpha=0.05))
+        #proc_woe_discrete_rebin(cfg.dataset_train,var,rebin_list,cfg.global_bt,cfg.global_gt,cfg.global_wbt,cfg.global_wgt,cfg.min_sample,alpha=0.05)
+
+    feature_detail = woeeval.eval_feature_detail(rst, outfile_path)
 
     import pandas as pd
     pd.options.display.float_format = '{:.2f}'.format
-    for var in bin_var_list+discrete_var_list:
+    for var in bin_var_list+rebin_var_list+discrete_var_list+rebin_discrete_var_list:
         print 'variable = ',var,'\t# obs = ',len(orig_dataset_train[var]),'\t# valid = ',len(orig_dataset_train.loc[~orig_dataset_train[var].isnull(), (var)]),'\t% valid = ',len(orig_dataset_train.loc[~orig_dataset_train[var].isnull(), (var)])*100.0/(len(orig_dataset_train[var]))
         df = feature_detail.loc[feature_detail['var_name'] == var]
         print(df[['split_list','sub_total_sample_num','positive_sample_num'
             ,'weight_positive_freq','weight_negative_freq'
             ,'perc_cum_weight_freq','perc_cum_weight_positive_freq','perc_cum_weight_negative_freq'
             ,'woe_list','iv_list','ks_list']])
-        eval.plot_woe(df, var)
+        woeeval.plot_woe(df, var)
 
     s = 'summary of WOE transformation'
     print(s.center(60, '-'))

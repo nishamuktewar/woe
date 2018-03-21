@@ -36,9 +36,9 @@ def eval_feature_detail(Info_Value_list,out_path=False):
         if rst[kk].split_list != []:
             if not rst[kk].is_discrete:
                 #deal with split_list
-                split_list.append('(-INF,'+str(rst[kk].split_list[0])+'')
+                split_list.append('(-INF,'+str(rst[kk].split_list[0])+')')
                 for i in range(0,len(rst[kk].split_list)-1):
-                    split_list.append('(' + str(rst[kk].split_list[i])+','+ str(rst[kk].split_list[i+1]) + ']')
+                    split_list.append('(' + str(rst[kk].split_list[i])+','+ str(rst[kk].split_list[i+1]) + ')')
 
                 split_list.append('(' + str(rst[kk].split_list[len(rst[kk].split_list)-1]) + ',+INF)')
             else:
