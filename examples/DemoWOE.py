@@ -25,7 +25,7 @@ if __name__ == '__main__':
                                            ,rebin_feature_path=rebin_feature_path)
     # proc woe transformation
     woe_train_path = os.getcwd()+'//examples/dataset_train_woed.csv'
-    fp.process_woe_trans(data_path,rst_pkl_path,woe_train_path,config_path)
+    fp.process_woe_trans(data_path,rst_pkl_path,woe_train_path,config_path,rebin_feature_path)
     # here i take the same dataset as test dataset
     woe_test_path = os.getcwd()+'//examples/dataset_test_woed.csv'
-    fp.process_woe_trans(data_path,rst_pkl_path,woe_test_path,config_path)
+    fp.process_woe_trans(data_path,rst_pkl_path,woe_test_path,config_path,rebin_feature_path)
