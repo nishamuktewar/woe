@@ -474,7 +474,6 @@ def woe_trans(dvar,civ):
         for i in range(civ.split_list.__len__()):
             for j in range(civ.split_list[i].__len__()):
                 split_map[civ.split_list[i][j]] = civ.woe_list[i]
-
         var = var.map(split_map)
 
     return var
@@ -498,7 +497,7 @@ def proc_woe_discrete(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sampl
     rdict = {}
     cpvar = df[var]
     #print(df.head(5))
-    # print('np.unique(df[var])：',np.unique(df[var]))
+    print('np.unique(df[var])：',np.unique(df[var]))
     for var_value in np.unique(df[var]):
         # Here come with a '==',in case type error you must do Nan filling process firstly
         df_temp = df[df[var] == var_value]
@@ -564,12 +563,13 @@ def proc_woe_discrete_rebin(df,var,rebin_list,global_bt,global_gt,global_wbt,glo
     '''
     s = 'rebin process discrete variable:'+str(var)
     print(s.center(60, '-'))
-
+    import ast
     df = df[[var,'target','weight']]
     for rebin_val in rebin_list:
-        df.loc[df[var].isin(eval(rebin_val)), (var)] = str(rebin_val).strip('[]')
+        #df.loc[df[var].isin(eval(rebin_val)), (var)] = str(rebin_val).strip('[]')  # ast.literal_eval(str(rebin_val))
+        df.loc[df[var].isin(eval('['+str(rebin_val)+']')), (var)] = str(rebin_val)  # ast.literal_eval(str(rebin_val))
         df[var] = df[var].astype(object)
-    print(df.head(5))
+
     div = DisInfoValue()
     div.var_name = var
     rdict = {}
@@ -594,12 +594,11 @@ def proc_woe_discrete_rebin(df,var,rebin_list,global_bt,global_gt,global_wbt,glo
     split_list = list(np.unique(df[[var]]))
     split_list.sort()
     
+    # Commenting the section below because this would override the rebinning logic specified if the # of sample data points are < min_sample
     # Segmentation point checking and processing
     # split_list = check_point(df, var, split_list, min_sample)
     # split_list.sort()
-    
-    print 'split_list sorted', split_list
-    
+        
     civ = format_iv_split(df,var,split_list,global_bt,global_gt,global_wbt,global_wgt)
     civ.is_discrete = 1
     
@@ -794,9 +793,14 @@ def process_woe_trans(in_data_path=None,rst_path=None,out_path=None,config_path=
 
     rebin_discrete_var_list = [tmp for tmp in cfg.rebin_discrete_var_list if tmp in list(cfg.dataset_train.columns)]
     for var in [tmp for tmp in cfg.rebin_discrete_var_list if tmp in list(cfg.dataset_train.columns)]:
-        print 'rebin discrete var ', var
         # fill null
         cfg.dataset_train.loc[cfg.dataset_train[var].isnull(), (var)] = 'missing'
+        # first use the split values from features_rebin to re-bin the existing dataset, that way the WOE transformation is applied correctly
+        rebin_var_df = cfg.dataset_rebin.loc[cfg.dataset_rebin['var_name'] == var]
+        rebin_var_df['split'] = rebin_var_df['split'].astype(object)
+        rebin_list = list(np.unique(rebin_var_df[['split']]))
+        for rebin_val in rebin_list:
+            cfg.dataset_train.loc[cfg.dataset_train[var].isin(eval('['+str(rebin_val)+']')), (var)] = str(rebin_val)
 
     change_feature_dtype(cfg.dataset_train, cfg.variable_type)
 
@@ -806,8 +810,6 @@ def process_woe_trans(in_data_path=None,rst_path=None,out_path=None,config_path=
 
     # Training dataset Woe Transformation
     for r in rst:
-        if r.var_name == 'MARRIAGE':
-            print r.var_name, r.split_list
         cfg.dataset_train[r.var_name] = woe_trans(cfg.dataset_train[r.var_name], r)
-
+    # Output to a csv
     cfg.dataset_train.to_csv(out_path)
