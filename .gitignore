@@ -1,4 +1,4 @@
-data/
-build/
-dist/
-woe.egg-info/
+data/**
+build/**
+dist/**
+woe.egg-info/**
