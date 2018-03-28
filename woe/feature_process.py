@@ -175,7 +175,7 @@ def check_point(df,var,split,min_sample):
         pass
     return new_split
 
-def calulate_iv(df,var,global_bt,global_gt,global_wbt,global_wgt):
+def calulate_iv(df,var,global_bt,global_gt):
     '''
     calculate the iv and woe value without split
     :param df:
@@ -198,14 +198,9 @@ def calulate_iv(df,var,global_bt,global_gt,global_wbt,global_wgt):
     groupdetail['negative_sample_num'] = gt_sub
     groupdetail['positive_rate_in_sub_total'] = bt_sub*1.0/df.shape[0]
     groupdetail['negative_rate_in_sub_total'] = gt_sub*1.0/df.shape[0]
-
-    wbt_sub = sum(df['weight'])
-    wbri = (wbt_sub + 0.0001)* 1.0 / global_wbt
-    wgt_sub = df.shape[0] - wbt_sub
-    wgri = (wgt_sub + 0.0001)* 1.0 / global_wgt
-    groupdetail['weight_freq'] = df.shape[0]*1.0/(global_wbt+global_wgt)
-    groupdetail['weight_positive_freq'] = wbt_sub
-    groupdetail['weight_negative_freq'] = wgt_sub
+    groupdetail['weight_freq'] = df.shape[0]*1.0/(global_bt+global_gt)
+    groupdetail['weight_positive_freq'] = bt_sub
+    groupdetail['weight_negative_freq'] = gt_sub
 
     return groupdetail
 
@@ -218,8 +213,8 @@ def calculate_iv_split(df,var,split_point,global_bt,global_gt):
     :return:
     """
     #split dataset
-    dataset_r = df[df.loc[:,var] > split_point][[var,'target','weight']]
-    dataset_l = df[df.loc[:,var] <= split_point][[var,'target','weight']]
+    dataset_r = df[df.loc[:,var] > split_point][[var,'target']]
+    dataset_l = df[df.loc[:,var] <= split_point][[var,'target']]
 
     r1_cnt = sum(dataset_r['target'])
     r0_cnt = dataset_r.shape[0] - r1_cnt
@@ -243,14 +238,14 @@ def calculate_iv_split(df,var,split_point,global_bt,global_gt):
     return woel,woer,iv,dataset_l,dataset_r,ivl,ivr
 
 
-def binning_data_split(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sample,alpha=0.01):
+def binning_data_split(df,var,global_bt,global_gt,min_sample,alpha=0.01):
     """
     Specify the data split level and return the split value list
     :return:
     """
     iv_var = InfoValue()
     # Calculates the IV of the current node before splitted
-    gd = calulate_iv(df, var,global_bt,global_gt,global_wbt,global_wgt)
+    gd = calulate_iv(df, var,global_bt,global_gt)
 
     woei, ivi = gd['woei'],gd['ivi']
 
@@ -312,14 +307,14 @@ def binning_data_split(df,var,global_bt,global_gt,global_wbt,global_wgt,min_samp
             presplit_right.iv = bestSplit_ivr
             right = presplit_right
         else:
-            right = binning_data_split(bestSplit_dataset_r,var,global_bt,global_gt,global_wbt,global_wgt,min_sample,alpha=0.01)
+            right = binning_data_split(bestSplit_dataset_r,var,global_bt,global_gt,min_sample,alpha=0.01)
 
         # Determine whether the left node satisfies the segmentation prerequisite
         if bestSplit_dataset_l.shape[0] < min_sample or np.unique(bestSplit_dataset_l['target']).__len__() == 1:
             presplit_left.iv = bestSplit_ivl
             left = presplit_left
         else:
-            left = binning_data_split(bestSplit_dataset_l,var,global_bt,global_gt,global_wbt,global_wgt,min_sample,alpha=0.01)
+            left = binning_data_split(bestSplit_dataset_l,var,global_bt,global_gt,min_sample,alpha=0.01)
 
         return node(var_name=var,split_point=bestSplit_point,iv=ivi,left=left,right=right)
     else:
@@ -347,7 +342,7 @@ def search(tree,split_list):
     return split_list
 
 
-def format_iv_split(df,var,split_list,global_bt,global_gt,global_wbt,global_wgt,is_continuous,global_numeric_missing,global_categorical_missing,missing_woe=0):
+def format_iv_split(df,var,split_list,global_bt,global_gt,is_continuous,global_numeric_missing,global_categorical_missing,missing_woe=0):
     '''
     Given the dataset DataFrame and split points list then return a InfoValue instance;
     Just for continuous variable
@@ -400,7 +395,7 @@ def format_iv_split(df,var,split_list,global_bt,global_gt,global_wbt,global_wgt,
     # todo when missing
     range_start = 0
     if df_missing.shape[0] > 0:
-        gd = calulate_iv(df_missing,var,global_bt,global_gt,global_wbt,global_wgt)
+        gd = calulate_iv(df_missing,var,global_bt,global_gt)
         woei, ivi = gd['woei'],gd['ivi']
         civ.woe_list.append(woei)
         civ.iv_list.append(ivi)
@@ -424,7 +419,7 @@ def format_iv_split(df,var,split_list,global_bt,global_gt,global_wbt,global_wgt,
         #if civ.split_list.__len__() > 1:
             dfi = dfcp[dfcp[var] <= civ.split_list[i]]
             dfcp = dfcp[dfcp[var] > civ.split_list[i]]
-            gd = calulate_iv(dfi, var,global_bt,global_gt,global_wbt,global_wgt)
+            gd = calulate_iv(dfi,var,global_bt,global_gt)
             woei, ivi = gd['woei'],gd['ivi']
             civ.woe_list.append(woei)
             civ.iv_list.append(ivi)
@@ -451,7 +446,7 @@ def format_iv_split(df,var,split_list,global_bt,global_gt,global_wbt,global_wgt,
                     civ.neg_trend = civ.neg_trend + 1
 
     if dfcp.shape[0]>0:
-        gd = calulate_iv(dfcp, var,global_bt,global_gt,global_wbt,global_wgt)
+        gd = calulate_iv(dfcp, var,global_bt,global_gt)
         woei, ivi = gd['woei'],gd['ivi']
         civ.woe_list.append(woei)
         civ.iv_list.append(ivi)
@@ -472,12 +467,6 @@ def format_iv_split(df,var,split_list,global_bt,global_gt,global_wbt,global_wgt,
             civ.pos_trend = civ.pos_trend + 1
         else:
             civ.neg_trend = civ.neg_trend + 1
-        '''
-        else:
-            civ.cum_weight_freq.append(gd['weight_positive_freq'] + gd['weight_negative_freq'])
-            civ.cum_weight_positive_freq.append(gd['weight_positive_freq'])
-            civ.cum_weight_negative_freq.append(gd['weight_negative_freq'])
-        '''    
                         
     civ.iv = sum(civ.iv_list)
     civ.total_weight_freq = sum(civ.weight_freq)
@@ -491,13 +480,7 @@ def format_iv_split(df,var,split_list,global_bt,global_gt,global_wbt,global_wgt,
     civ.ks_list = list(np.abs(np.array(civ.perc_cum_weight_positive_freq) - np.array(civ.perc_cum_weight_negative_freq)))
     civ.maxks = np.max(civ.ks_list)
     civ.linearity = np.abs(civ.pos_trend - civ.neg_trend)*100.0/(civ.split_list.__len__()+0.0001)
-    '''
-    print ('-'*80)
-    print 'split\t', 'weight_freq\t','weight_positive_freq\t','weight_negative_freq\t', 'perc_cum_weight_freq\t', 'ks', 'maxks', 'pos_trend', 'neg_trend', 'woe', 'linearity'
-    print ('-'*80)
-    for i in range(0, split_list.__len__()):
-        print civ.split_list[i], civ.weight_freq[i], civ.weight_positive_freq[i], civ.weight_negative_freq[i], civ.perc_cum_weight_freq[i], civ.ks_list[i], civ.maxks, civ.pos_trend, civ.neg_trend, civ.woe_list[i], civ.linearity 
-    '''
+
     return civ
     
 def woe_trans(dvar,civ):
@@ -523,7 +506,7 @@ def woe_trans(dvar,civ):
 
     return var
 
-def proc_woe_discrete(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sample,global_numeric_missing,global_categorical_missing,alpha=0.01):
+def proc_woe_discrete(df,var,global_bt,global_gt,min_sample,global_numeric_missing,global_categorical_missing,alpha=0.01):
     '''
     process woe transformation of discrete variables
     :param df:
@@ -538,7 +521,7 @@ def proc_woe_discrete(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sampl
 
     df_notmissing = df.loc[df[var] != global_categorical_missing]
     
-    df = df[[var,'target','weight']]
+    df = df[[var,'target']]
     div = DisInfoValue()
     div.var_name = var
     rdict = {}
@@ -549,7 +532,7 @@ def proc_woe_discrete(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sampl
     for var_value in np.unique(df[var]):
         # Here come with a '==',in case type error you must do Nan filling process firstly
         df_temp = df[df[var] == var_value]
-        gd = calulate_iv(df_temp,var,global_bt,global_gt,global_wbt,global_wgt)
+        gd = calulate_iv(df_temp,var,global_bt,global_gt)
         woei, ivi = gd['woei'],gd['ivi']
         div.origin_value.append(var_value)
         div.woe_before.append(woei)
@@ -565,7 +548,7 @@ def proc_woe_discrete(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sampl
     df_notmissing = df.loc[df[var] != missing_woe]
     #print('np.unique(df_notmissing[var])：',np.unique(df_notmissing[var]))
     
-    iv_tree = binning_data_split(df_notmissing,var,global_bt,global_gt,global_wbt,global_wgt,min_sample,alpha)
+    iv_tree = binning_data_split(df_notmissing,var,global_bt,global_gt,min_sample,alpha)
 
     # Traversal tree, get the segmentation point
     split_list = []
@@ -609,7 +592,7 @@ def proc_woe_discrete(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sampl
     # print 'split_list_temp', split_list_temp
     # print 'origin_value', origin_value
     # print 'woe_before', woe_before
-    civ = format_iv_split(df,var,split_list,global_bt,global_gt,global_wbt,global_wgt,0,global_numeric_missing,global_categorical_missing,missing_woe)
+    civ = format_iv_split(df,var,split_list,global_bt,global_gt,0,global_numeric_missing,global_categorical_missing,missing_woe)
     civ.is_discrete = 1
 
     # The below logic replaces the woe values with the original value and orders the split_list by the woe                 
@@ -617,15 +600,9 @@ def proc_woe_discrete(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sampl
     
     for i in range(range_start,split_list_temp.__len__()-1):
         temp = []
-        # not_in_list =[]
         for j in range(range_start, origin_value.__len__()):
             if (woe_before[j]>split_list_temp[i]) & (woe_before[j]<=split_list_temp[i+1]):
                 temp.append(origin_value[j])
-            '''
-            # when the search returns only one value/node, fix this part, that is, split length = 3
-            elif (split_list_temp.__len__() == 3):
-                not_in_list.append(origin_value[j])
-            '''
         if temp != [] :
             a.append(temp)
 
@@ -633,7 +610,7 @@ def proc_woe_discrete(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sampl
     # print 'civ.split_list', civ.split_list
     return civ
 
-def proc_woe_discrete_rebin(df,var,rebin_list,global_bt,global_gt,global_wbt,global_wgt,min_sample,global_numeric_missing,global_categorical_missing,alpha=0.01):
+def proc_woe_discrete_rebin(df,var,rebin_list,global_bt,global_gt,min_sample,global_numeric_missing,global_categorical_missing,alpha=0.01):
     '''
     process woe transformation of discrete variables based on the re-binning logic
     :param df:
@@ -646,7 +623,7 @@ def proc_woe_discrete_rebin(df,var,rebin_list,global_bt,global_gt,global_wbt,glo
     s = 'rebin process discrete variable:'+str(var)
     print(s.center(60, '-'))
     import ast
-    df = df[[var,'target','weight']]
+    df = df[[var,'target']]
     
     for rebin_val in rebin_list:
         df.loc[df[var].isin(eval(rebin_val)), (var)] =  str(rebin_val).strip('[]').replace('\'','')
@@ -660,7 +637,7 @@ def proc_woe_discrete_rebin(df,var,rebin_list,global_bt,global_gt,global_wbt,glo
     for var_value in np.unique(df[var]):
         # Here come with a '==',in case type error you must do Nan filling process firstly
         df_temp = df[df[var] == var_value]
-        gd = calulate_iv(df_temp,var,global_bt,global_gt,global_wbt,global_wgt)
+        gd = calulate_iv(df_temp,var,global_bt,global_gt)
         woei, ivi = gd['woei'],gd['ivi']
         div.origin_value.append(var_value)
         div.woe_before.append(woei)
@@ -683,7 +660,7 @@ def proc_woe_discrete_rebin(df,var,rebin_list,global_bt,global_gt,global_wbt,glo
     # split_list = check_point(df, var, split_list, min_sample)
     # split_list.sort()
         
-    civ = format_iv_split(df,var,split_list,global_bt,global_gt,global_wbt,global_wgt,0,global_numeric_missing,global_categorical_missing)
+    civ = format_iv_split(df,var,split_list,global_bt,global_gt,0,global_numeric_missing,global_categorical_missing)
     civ.is_discrete = 1
     
     split_list_temp = []
@@ -705,7 +682,7 @@ def proc_woe_discrete_rebin(df,var,rebin_list,global_bt,global_gt,global_wbt,glo
     return civ
     
 
-def proc_woe_continuous(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sample,global_numeric_missing,global_categorical_missing,alpha=0.01):
+def proc_woe_continuous(df,var,global_bt,global_gt,min_sample,global_numeric_missing,global_categorical_missing,alpha=0.01):
     '''
     process woe transformation of discrete variables
     :param df:
@@ -718,8 +695,8 @@ def proc_woe_continuous(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sam
     s = 'process continuous variable:'+str(var)
     print(s.center(60, '-'))
     df_notmissing = df.loc[df[var] <> global_numeric_missing]
-    df_notmissing = df_notmissing[[var,'target','weight']]
-    iv_tree = binning_data_split(df_notmissing, var,global_bt,global_gt,global_wbt,global_wgt,min_sample,alpha)
+    df_notmissing = df_notmissing[[var,'target']]
+    iv_tree = binning_data_split(df_notmissing,var,global_bt,global_gt,min_sample,alpha)
 
     # Traversal tree, get the segmentation point
     split_list = []
@@ -731,11 +708,11 @@ def proc_woe_continuous(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sam
     split_list = check_point(df_notmissing, var, split_list, min_sample)
     split_list.sort()
 
-    civ = format_iv_split(df,var,split_list,global_bt,global_gt,global_wbt,global_wgt,1,global_numeric_missing,global_categorical_missing)
+    civ = format_iv_split(df,var,split_list,global_bt,global_gt,1,global_numeric_missing,global_categorical_missing)
 
     return civ
 
-def proc_woe_continuous_rebin(df,var,split_list,global_bt,global_gt,global_wbt,global_wgt,min_sample,global_numeric_missing,global_categorical_missing,alpha=0.01):
+def proc_woe_continuous_rebin(df,var,split_list,global_bt,global_gt,min_sample,global_numeric_missing,global_categorical_missing,alpha=0.01):
     '''
     process woe transformation of continuous variables based on the re-binning logic
     :param df:
@@ -755,7 +732,7 @@ def proc_woe_continuous_rebin(df,var,split_list,global_bt,global_gt,global_wbt,g
     split_list = check_point(df, var, split_list, min_sample)
     split_list.sort()
 
-    civ = format_iv_split(df,var,split_list,global_bt,global_gt,global_wbt,global_wgt,1,global_numeric_missing,global_categorical_missing)
+    civ = format_iv_split(df,var,split_list,global_bt,global_gt,1,global_numeric_missing,global_categorical_missing)
 
     return civ
   
@@ -792,15 +769,15 @@ def process_train_woe(infile_path=None,outfile_path=None,rst_path=None,config_pa
 
     print('cfg.global_bt',cfg.global_bt)
     print('cfg.global_gt', cfg.global_gt)
-    print('cfg.global_wbt',cfg.global_wbt)
-    print('cfg.global_wgt', cfg.global_wgt)
+    print('cfg.global_categorical_missing',cfg.global_categorical_missing)
+    print('cfg.global_numeric_missing', cfg.global_numeric_missing)
 
     # process woe transformation of continuous variables
     print('process woe transformation of continuous variables: \n',time.asctime(time.localtime(time.time())))
     for var in bin_var_list:
         # fill null
         cfg.dataset_train.loc[cfg.dataset_train[var].isnull(), (var)] = cfg.global_numeric_missing
-        rst.append(proc_woe_continuous(cfg.dataset_train,var,cfg.global_bt,cfg.global_gt,cfg.global_wbt,cfg.global_wgt,cfg.min_sample,cfg.global_numeric_missing,cfg.global_categorical_missing,alpha=0.05))
+        rst.append(proc_woe_continuous(cfg.dataset_train,var,cfg.global_bt,cfg.global_gt,cfg.min_sample,cfg.global_numeric_missing,cfg.global_categorical_missing,alpha=0.05))
 
     # process woe transformation of continuous variables based on the re-binning logic provided
     print('process woe transformation of continuous variables based on rebin logic: \n',time.asctime(time.localtime(time.time())))
@@ -810,7 +787,7 @@ def process_train_woe(infile_path=None,outfile_path=None,rst_path=None,config_pa
         cfg.dataset_train.loc[cfg.dataset_train[var].isnull(), (var)] = cfg.global_numeric_missing
         var_df = cfg.dataset_rebin.loc[cfg.dataset_rebin['var_name'] == var]
         split_list = list(np.unique(var_df[['split']].astype(float)))
-        rst.append(proc_woe_continuous_rebin(cfg.dataset_train,var,split_list,cfg.global_bt,cfg.global_gt,cfg.global_wbt,cfg.global_wgt,cfg.min_sample,cfg.global_numeric_missing,cfg.global_categorical_missing,alpha=0.05))
+        rst.append(proc_woe_continuous_rebin(cfg.dataset_train,var,split_list,cfg.global_bt,cfg.global_gt,cfg.min_sample,cfg.global_numeric_missing,cfg.global_categorical_missing,alpha=0.05))
     
     # process woe transformation of discrete variables
     print('process woe transformation of discrete variables: \n',time.asctime(time.localtime(time.time())))
@@ -818,7 +795,7 @@ def process_train_woe(infile_path=None,outfile_path=None,rst_path=None,config_pa
     for var in [tmp for tmp in cfg.discrete_var_list if tmp in list(cfg.dataset_train.columns)]:
         # fill null
         cfg.dataset_train.loc[cfg.dataset_train[var].isnull(), (var)] = cfg.global_categorical_missing
-        rst.append(proc_woe_discrete(cfg.dataset_train,var,cfg.global_bt,cfg.global_gt,cfg.global_wbt,cfg.global_wgt,cfg.min_sample,cfg.global_numeric_missing,cfg.global_categorical_missing,alpha=0.05))
+        rst.append(proc_woe_discrete(cfg.dataset_train,var,cfg.global_bt,cfg.global_gt,cfg.min_sample,cfg.global_numeric_missing,cfg.global_categorical_missing,alpha=0.05))
 
     # process woe transformation of discrete variables based on re-binning logic
     print('process woe transformation of discrete variables based on rebin logic: \n',time.asctime(time.localtime(time.time())))
@@ -827,11 +804,9 @@ def process_train_woe(infile_path=None,outfile_path=None,rst_path=None,config_pa
         # fill null
         cfg.dataset_train.loc[cfg.dataset_train[var].isnull(), (var)] = cfg.global_categorical_missing
         var_df = cfg.dataset_rebin.loc[cfg.dataset_rebin['var_name'] == var]
-        # var_df['split'] = var_df['split'].astype(object)
         var_df.loc[:,'split'] = var_df['split'].astype(object)
         rebin_list = list(np.unique(var_df[['split']]))
-        print 'rebin_list: ', rebin_list
-        rst.append(proc_woe_discrete_rebin(cfg.dataset_train,var,rebin_list,cfg.global_bt,cfg.global_gt,cfg.global_wbt,cfg.global_wgt,cfg.min_sample,cfg.global_numeric_missing,cfg.global_categorical_missing,alpha=0.05))
+        rst.append(proc_woe_discrete_rebin(cfg.dataset_train,var,rebin_list,cfg.global_bt,cfg.global_gt,cfg.min_sample,cfg.global_numeric_missing,cfg.global_categorical_missing,alpha=0.05))
 
     feature_detail = woeeval.eval_feature_detail(rst, outfile_path)
 

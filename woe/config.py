@@ -15,8 +15,6 @@ class config:
         self.min_sample = None
         self.global_bt = None
         self.global_gt = None
-        self.global_wbt = None
-        self.global_wgt = None
         self.dataset_rebin = None
         self.rebin_var_list = None
         self.rebin_discrete_var_list = None
@@ -55,9 +53,7 @@ class config:
             self.min_sample = int(self.dataset_len * 0.05)
             self.global_bt = sum(self.dataset_train['target'])
             self.global_gt = len(self.dataset_train) - sum(self.dataset_train['target'])
-            self.global_wbt = sum(self.dataset_train['weight'])
-            self.global_wgt = len(self.dataset_train) - sum(self.dataset_train['weight'])
-            
+             
         if rebinfeature_path:
             rebinfeature_path = rebinfeature_path if isinstance(rebinfeature_path, str) else None
 
