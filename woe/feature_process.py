@@ -647,10 +647,9 @@ def proc_woe_discrete_rebin(df,var,rebin_list,global_bt,global_gt,global_wbt,glo
     print(s.center(60, '-'))
     import ast
     df = df[[var,'target','weight']]
+    
     for rebin_val in rebin_list:
-        #df.loc[df[var].isin(eval(rebin_val)), (var)] = str(rebin_val).strip('[]')  # ast.literal_eval(str(rebin_val))
-        df.loc[df[var].isin(eval('['+str(rebin_val)+']')), (var)] = str(rebin_val)  # ast.literal_eval(str(rebin_val))
-        df.loc[:,(var)] = df[var].astype(object)
+        df.loc[df[var].isin(eval(rebin_val)), (var)] =  str(rebin_val).strip('[]').replace('\'','')
 
     div = DisInfoValue()
     div.var_name = var
@@ -831,6 +830,7 @@ def process_train_woe(infile_path=None,outfile_path=None,rst_path=None,config_pa
         # var_df['split'] = var_df['split'].astype(object)
         var_df.loc[:,'split'] = var_df['split'].astype(object)
         rebin_list = list(np.unique(var_df[['split']]))
+        print 'rebin_list: ', rebin_list
         rst.append(proc_woe_discrete_rebin(cfg.dataset_train,var,rebin_list,cfg.global_bt,cfg.global_gt,cfg.global_wbt,cfg.global_wgt,cfg.min_sample,cfg.global_numeric_missing,cfg.global_categorical_missing,alpha=0.05))
 
     feature_detail = woeeval.eval_feature_detail(rst, outfile_path)
@@ -886,7 +886,7 @@ def process_woe_trans(in_data_path=None,rst_path=None,out_path=None,config_path=
         rebin_var_df['split'] = rebin_var_df['split'].astype(object)
         rebin_list = list(np.unique(rebin_var_df[['split']]))
         for rebin_val in rebin_list:
-            cfg.dataset_train.loc[cfg.dataset_train[var].isin(eval('['+str(rebin_val)+']')), (var)] = str(rebin_val)
+            cfg.dataset_train.loc[cfg.dataset_train[var].isin(eval(rebin_val)), (var)] = str(rebin_val).strip('[]').replace('\'','')
 
     change_feature_dtype(cfg.dataset_train, cfg.variable_type)
 

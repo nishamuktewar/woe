@@ -50,16 +50,20 @@ data_use.to_csv('./data/raw_data_for_woe.csv', index=False)
 var_name = list(data_use.columns)
 
 # Make sure these are mutually exclusive lists
-tobe_bin = ['maxmind_riskscore','modelcalc_dist_real_ip_vs_sender_location']
-candidate = ['opacket_channel','type','card_type','opacket_preauth_disposition',
+tobe_bin = [] #['maxmind_riskscore','modelcalc_dist_real_ip_vs_sender_location']
+candidate = []
+'''
+            ['opacket_channel','type','card_type','opacket_preauth_disposition',
              'spacket_disposition','risksegment_controlgroup','opacket_dfp_device_type',
              'opacket_dfp_device_os','opacket_dfp_device_browser_type',
              'opacket_receiver_country','opacket_receiver_state','ownership_group']
-rebin = ['ea_score', 'grossamount']
+'''
+discrete_rebin = ['card_type'] 
+numeric_rebin = [] #['ea_score', 'grossamount']
 
-is_tobe_bin = [1 if v in tobe_bin + rebin else 0 for v in var_name]
-is_candidate = [1 if v in candidate else 0 for v in var_name]
-is_rebin_provided = [1 if v in rebin else 0 for v in var_name]
+is_tobe_bin = [1 if v in tobe_bin + numeric_rebin else 0 for v in var_name]
+is_candidate = [1 if v in candidate + discrete_rebin else 0 for v in var_name]
+is_rebin_provided = [1 if v in numeric_rebin + discrete_rebin else 0 for v in var_name]
 
 modelfeature = tobe_bin + candidate + rebin
 is_modelfeature = [1 if v in modelfeature else 0 for v in var_name]
