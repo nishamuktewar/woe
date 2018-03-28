@@ -674,7 +674,8 @@ def proc_woe_discrete_rebin(df,var,rebin_list,global_bt,global_gt,global_wbt,glo
     df.loc[:,var] = cpvar
     # print(df.head(5))
     #df.loc[:,var] = cpvar.loc[:,1]
-
+    df_notmissing = df.loc[df[var] != missing_woe]
+    
     split_list = list(np.unique(df[[var]]))
     split_list.sort()
     
