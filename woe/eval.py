@@ -602,7 +602,7 @@ def plot_woe(df,var_name,out_path=False):
     plt.figure()
     plt.grid(True)
     y_pos = np.arange(len(df['split_list']))
-    plt.xticks(y_pos,df['split_list'],rotation='vertical')
+    plt.xticks(y_pos,df['split_list'],rotation='horizontal')
     plt.bar(y_pos,df['woe_list'],align='center',alpha=0.5)
     plt.xlabel(var_name)
     plt.ylabel('WOE')

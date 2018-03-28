@@ -50,8 +50,11 @@ data_use.to_csv('./data/raw_data_for_woe.csv', index=False)
 var_name = list(data_use.columns)
 
 # Make sure these are mutually exclusive lists
-tobe_bin = ['grossamount', 'maxmind_riskscore']
-candidate = ['opacket_channel', 'type', 'card_type']
+tobe_bin = ['grossamount', 'maxmind_riskscore','modelcalc_dist_real_ip_vs_sender_location']
+candidate = ['opacket_channel','type','card_type','opacket_preauth_disposition',
+             'spacket_disposition','risksegment_controlgroup','opacket_dfp_device_type',
+             'opacket_dfp_device_os','opacket_dfp_device_browser_type',
+             'opacket_receiver_country','opacket_receiver_state','ownership_group']
 rebin = ['ea_score']
 
 is_tobe_bin = [1 if v in tobe_bin + rebin else 0 for v in var_name]
