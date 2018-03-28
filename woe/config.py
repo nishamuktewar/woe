@@ -20,6 +20,8 @@ class config:
         self.dataset_rebin = None
         self.rebin_var_list = None
         self.rebin_discrete_var_list = None
+        self.global_categorical_missing = 'missing'
+        self.global_numeric_missing = -999999
 
     def load_file(self,config_path,data_path=False,rebinfeature_path=False):
         self.config = pd.read_csv(config_path)
