@@ -2,3 +2,4 @@ data/**
 build/**
 dist/**
 woe.egg-info/**
+.idea/**
