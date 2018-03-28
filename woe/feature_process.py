@@ -630,7 +630,7 @@ def proc_woe_discrete(df,var,global_bt,global_gt,global_wbt,global_wgt,min_sampl
             a.append(temp)
 
     civ.split_list = a
-    print 'civ.split_list', civ.split_list
+    # print 'civ.split_list', civ.split_list
     return civ
 
 def proc_woe_discrete_rebin(df,var,rebin_list,global_bt,global_gt,global_wbt,global_wgt,min_sample,global_numeric_missing,global_categorical_missing,alpha=0.01):
@@ -838,7 +838,6 @@ def process_train_woe(infile_path=None,outfile_path=None,rst_path=None,config_pa
     pd.options.display.float_format = '{:.3f}'.format
     for var in bin_var_list+rebin_var_list+discrete_var_list+rebin_discrete_var_list:
         missing_obs = cfg.dataset_train.loc[cfg.dataset_train[var].isin([cfg.global_numeric_missing, cfg.global_categorical_missing])].shape[0]
-        print 'missing obs', missing_obs
         print 'variable = ',var,'\t# obs = ',orig_dataset_train[var].shape[0],'\t# valid = ',(orig_dataset_train[var].shape[0] - missing_obs),'\t% valid = ',(orig_dataset_train[var].shape[0] - missing_obs)*100.0/(orig_dataset_train[var].shape[0])
         df = feature_detail.loc[feature_detail['var_name'] == var]
         print(df[['split_list','sub_total_sample_num','positive_sample_num'
